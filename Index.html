@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Un juego con miles de caminos… ¿puedes encontrar un camino a la meta?</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#ffffff; --border:#d8deea; --text:#1f2937; --muted:#6b7280;
+      --initial:#fef3c7; --initial-border:#f59e0b; --derived:#d1fae5; --derived-border:#10b981;
+      --used:#e5e7eb; --used-text:#6b7280; --selected:#dbeafe; --selected-border:#2563eb;
+      --danger:#fee2e2; --danger-border:#ef4444; --success:#dcfce7; --success-border:#22c55e;
+      --info:#eef2ff; --info-border:#6366f1; --btn:#111827; --btn-text:#ffffff;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+    .container{max-width:1200px;margin:0 auto;padding:18px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:18px}
+.setup-card{background:#fff8e7}
+.game-card{background:#eefaf6}
+.section-title{text-decoration:underline;text-underline-offset:4px}
+    h1,h2,h3,p{margin-top:0}.subtle{color:var(--muted)} .section-title{font-size:22px;font-weight:700;margin-bottom:12px}
+    .grid-setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+    label{display:block;font-weight:700;margin-bottom:6px}
+    input,select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;font-size:16px;background:white}
+    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    button{border:none;border-radius:12px;padding:10px 14px;font-size:15px;cursor:pointer;background:var(--btn);color:var(--btn-text)}
+    button.secondary{background:white;color:var(--text);border:1px solid var(--border)}
+    button.info{background:#eef2ff;color:#312e81;border:1px solid #c7d2fe} button:disabled{opacity:.55;cursor:not-allowed}
+    .message{padding:12px 14px;border-radius:12px;margin-top:14px;border:1px solid var(--border);background:white}
+    .message.error{background:var(--danger);border-color:var(--danger-border)}
+    .message.success{background:var(--success);border-color:var(--success-border)}
+    .message.info{background:var(--info);border-color:var(--info-border)}
+    .game-grid{display:grid;grid-template-columns:1.5fr .9fr;gap:18px}
+    @media (max-width:930px){.game-grid{grid-template-columns:1fr}}
+    .chips{display:flex;flex-wrap:wrap;gap:10px}
+    .chip{min-width:64px;text-align:center;padding:14px 16px;border-radius:14px;border:2px solid transparent;font-size:24px;font-weight:700;cursor:pointer;user-select:none}
+    .chip.initial{background:var(--initial);border-color:var(--initial-border)}
+    .chip.derived{background:var(--derived);border-color:var(--derived-border)}
+    .chip.used{background:var(--used);color:var(--used-text);border-color:#cbd5e1;text-decoration:line-through;cursor:not-allowed}
+    .chip.selected{box-shadow:0 0 0 4px rgba(37,99,235,.15);border-color:var(--selected-border);background:var(--selected)}
+    .selection-panel{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:end;margin:18px 0 10px 0}
+    @media (max-width:700px){.selection-panel{grid-template-columns:1fr}}
+    .slot-wrap label{margin-bottom:8px}
+    .slot{min-height:72px;display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);border-radius:14px;background:#fafafa;font-size:28px;font-weight:700}
+    .slot.filled{border-style:solid;background:#f8fbff}
+    .operation-view{display:flex;align-items:center;justify-content:center;min-height:72px;font-size:34px;font-weight:700;border:2px solid var(--border);border-radius:14px;background:white;padding:0 16px}
+    .play-message{min-height:64px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:24px;font-weight:700;line-height:1.25;padding:14px 16px;border-radius:14px;border:2px solid var(--border);background:#fafafa;margin:6px 0 18px 0}
+    .play-message.error{background:var(--danger);border-color:var(--danger-border)}
+    .play-message.success{background:var(--success);border-color:var(--success-border)}
+    .play-message.info{background:#f8fafc;border-color:var(--border)}
+    .ops{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+    .ops button{min-width:64px;font-size:24px;padding:12px 18px}
+    .meta-badge{display:inline-block;padding:8px 12px;border-radius:999px;background:#eef2ff;border:1px solid #c7d2fe;margin-right:8px;margin-bottom:6px;font-weight:700}
+    .legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:14px;margin-top:12px}
+    .legend span.box{display:inline-block;width:16px;height:16px;border-radius:4px;margin-right:6px;vertical-align:middle;border:1px solid transparent}
+    .history{display:flex;flex-direction:column;gap:10px;max-height:620px;overflow:auto}
+    .history-item{border:1px solid var(--border);border-radius:14px;padding:12px;background:white}
+    .small{color:var(--muted);font-size:14px}
+    .linkbox{word-break:break-all;font-size:14px;margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fafafa}
+    .challenge-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:16px;align-items:end}
+    @media (max-width:700px){.challenge-row{grid-template-columns:1fr}}
+    .divider{height:1px;background:var(--border);margin:18px 0}
+
+    .config-grid{display:grid;grid-template-columns:1.2fr .9fr;gap:18px;align-items:start}
+    @media (max-width:900px){.config-grid{grid-template-columns:1fr}}
+    .inputs-vertical{display:grid;gap:14px}
+    .random-pair{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+    .random-btn{font-size:18px;padding:16px 18px;align-self:center;background:#e0f2fe;color:#0c4a6e;border:1px solid #7dd3fc;min-width:150px}
+    .random-spacer{visibility:hidden}
+    .main-actions{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+    .main-actions #startBtn{font-size:22px;padding:16px 28px;background:#fecaca;color:#7f1d1d;border:1px solid #fca5a5;font-weight:800}
+    .undo-area{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+    .undo-area button{font-size:18px;padding:12px 18px}
+    #undoBtnGame{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+    #restartBtnGame{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card setup-card">
+      <h1>Un juego con miles de caminos…<br>¿puedes encontrar un camino a la meta?</h1>
+      <div class="section-title">Configuración inicial</div>
+      <div class="config-grid">
+        <div class="inputs-vertical">
+          <div>
+            <label for="nInput">n: cantidad de números iniciales desde 2 hasta 6</label>
+            <input id="nInput" type="number" min="2" max="6" placeholder="Ej: 3" />
+          </div>
+
+          <div class="random-pair">
+            <div>
+              <label for="metaInput">M: Número meta</label>
+              <input id="metaInput" type="number" min="1" max="999" placeholder="Ej: 3" />
+            </div>
+            <div>
+              <label for="numsInput">Lista de los números iniciales</label>
+              <input id="numsInput" type="text" placeholder="Ej: 45,15,10" />
+            </div>
+            <button id="randomBtn" class="info random-btn">Random</button>
+          </div>
+        </div>
+
+        <div class="challenge-row" style="margin-top:6px;">
+          <div>
+            <label for="presetSelect">Desafíos</label>
+            <select id="presetSelect"></select>
+          </div>
+          <button id="loadPresetBtn" class="secondary">Cargar desafío</button>
+        </div>
+      </div>
+
+      <div class="main-actions" style="margin-top:16px;">
+        <button id="startBtn">Iniciar</button>
+        <button id="hardResetBtn" class="secondary">Borrar todo</button>
+        <button id="analyzeBtn" class="secondary">¿Tiene solución?</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="messageArea"></div>
+    </div>
+
+    <div id="gameArea" class="game-grid" style="display:none;">
+      <div class="card game-card">
+        <h2 class="section-title">Zona de juego</h2>
+        <p class="subtle" style="margin-bottom:14px;">Escoge dos números disponibles; estos aparecerán en dos casillas según el orden de los clics. Luego elige una operación e intenta llegar a la Meta. Recuerda que, por las reglas del juego, todos los resultados obtenidos deben ser enteros positivos.</p>
+        <div style="margin-bottom:14px;">
+          <div id="metaHero" style="font-size:36px;font-weight:800;line-height:1.1;padding:14px 18px;border-radius:16px;background:#eef2ff;border:2px solid #c7d2fe;display:inline-block;margin-right:10px;">Meta: -</div>
+          <span class="meta-badge" id="nBadge">n = -</span>
+        </div>
+
+
+        <h3>Números</h3>
+        <div id="chipsArea" class="chips"></div>
+
+        <div class="legend">
+          <div><span class="box" style="background:var(--initial); border-color:var(--initial-border);"></span> inicial disponible</div>
+          <div><span class="box" style="background:var(--derived); border-color:var(--derived-border);"></span> obtenido disponible</div>
+          <div><span class="box" style="background:var(--used); border-color:#cbd5e1;"></span> usado</div>
+        </div>
+
+        <div class="selection-panel">
+          <div class="slot-wrap">
+            <label>Casilla 1</label>
+            <div id="slot1" class="slot">—</div>
+          </div>
+          <div>
+            <label>Operación</label>
+            <div id="operationView" class="operation-view">?</div>
+          </div>
+          <div class="slot-wrap">
+            <label>Casilla 2</label>
+            <div id="slot2" class="slot">—</div>
+          </div>
+        </div>
+
+        <div id="playMessage" class="play-message info">Selecciona dos números y luego una operación.</div>
+
+        <h3>Operaciones</h3>
+        <div class="ops">
+          <button class="opBtn" data-op="+">+</button>
+          <button class="opBtn" data-op="-">−</button>
+          <button class="opBtn" data-op="*">×</button>
+          <button class="opBtn" data-op="/">÷</button>
+        </div>
+        <p class="small">En resta y división, el orden importa: se usa primero el número de la Casilla 1 y luego el de la Casilla 2.</p>
+        <div class="undo-area">
+          <button id="undoBtnGame" class="secondary">Deshacer</button>
+          <button id="restartBtnGame" class="secondary">Reiniciar juego</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Historial</h2>
+        <div id="historyArea" class="history"></div>
+      </div>
+        <div class="card">
+      <h2 class="section-title">Compartir desafío</h2>
+      <p class="subtle">Cuando la aplicación esté publicada en una web, este enlace servirá para compartir un desafío precargado.</p>
+      <div class="row" style="margin-bottom:10px;">
+        <button id="shareBtn" class="secondary">Compartir desafío</button>
+      </div>
+      <div id="shareArea"></div>
+    </div>
+  </div>
+
+  <script>
+    const MAX_VALUE = 999;
+    const ALLOWED_N = [2,3,4,5,6];
+    const PRESET_CHALLENGES = [
+      { name: "Desafío 1 · n=3 · M=19 · 4,6,9", n:3, meta:19, nums:[4,6,9] },
+      { name: "Desafío 2 · n=4 · M=24 · 5,7,3,8", n:4, meta:24, nums:[5,7,3,8] },
+      { name: "Desafío 3 · n=4 · M=17 · 9,6,5,4", n:4, meta:17, nums:[9,6,5,4] },
+      { name: "Desafío 4 · n=5 · M=29 · 10,3,7,2,5", n:5, meta:29, nums:[10,3,7,2,5] },
+      { name: "Desafío 5 · n=6 · M=31 · 8,6,4,3,2,5", n:6, meta:31, nums:[8,6,4,3,2,5] }
+    ];
+
+    let state = { meta:null, n:null, items:[], history:[], selectedIds:[], selectedOperation:null, won:false, initialConfig:null, undoStack:[], source:"manual" };
+
+    const nInput = document.getElementById('nInput');
+    const metaInput = document.getElementById('metaInput');
+    const numsInput = document.getElementById('numsInput');
+    const presetSelect = document.getElementById('presetSelect');
+    const messageArea = document.getElementById('messageArea');
+    const shareArea = document.getElementById('shareArea');
+    const gameArea = document.getElementById('gameArea');
+    const chipsArea = document.getElementById('chipsArea');
+    const historyArea = document.getElementById('historyArea');
+    const slot1 = document.getElementById('slot1');
+    const slot2 = document.getElementById('slot2');
+    const operationView = document.getElementById('operationView');
+    const metaHero = document.getElementById('metaHero');
+    const nBadge = document.getElementById('nBadge');
+    const playMessage = document.getElementById('playMessage');
+
+    function makeId(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+    function makeItem(value, origin){ return { id:makeId(), value, origin, used:false }; }
+    function setMessage(text, type='info'){ messageArea.innerHTML = text ? `<div class="message ${type}">${text}</div>` : ''; }
+    function setPlayMessage(text, type='info'){ playMessage.textContent = text; playMessage.className = `play-message ${type}`; }
+    function setShareLink(link){ shareArea.innerHTML = link ? `<div class="linkbox"><strong>Enlace del desafío:</strong><br>${link}</div>` : ''; }
+
+    function parseInitialNumbers(text){
+      const raw = text.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean);
+      if(raw.length === 0) return { ok:false, error:'Debes ingresar los números iniciales.' };
+      const nums = raw.map(Number);
+      if(nums.some(x => !Number.isInteger(x))) return { ok:false, error:'Todos los números iniciales deben ser enteros.' };
+      if(nums.some(x => x < 1 || x > MAX_VALUE)) return { ok:false, error:'La meta y los números iniciales deben estar entre 1 y 999.' };
+      return { ok:true, value:nums };
+    }
+
+    function getSelectedItems(){
+      return state.selectedIds.map(id => state.items.find(it => it.id === id)).filter(Boolean);
+    }
+
+    function snapshotState(){ return JSON.parse(JSON.stringify(state)); }
+    function restoreState(snapshot){ state = snapshot; render(); }
+    function availableMovesExist(items){ return items.filter(x => !x.used).length >= 2; }
+
+    function computeResult(a,b,op){
+      if(op === '+') return { ok:true, value:a+b, text:`${a} + ${b} = ${a+b}` };
+      if(op === '*') return { ok:true, value:a*b, text:`${a} × ${b} = ${a*b}` };
+      if(op === '-'){
+        const r = a - b;
+        if(!Number.isInteger(r) || r <= 0) return { ok:false, error:'Error: el resultado no es un entero positivo.' };
+        return { ok:true, value:r, text:`${a} - ${b} = ${r}` };
+      }
+      if(op === '/'){
+        const r = a / b;
+        if(!Number.isInteger(r) || r <= 0) return { ok:false, error:'Error: el resultado no es un entero positivo.' };
+        return { ok:true, value:r, text:`${a} ÷ ${b} = ${r}` };
+      }
+      return { ok:false, error:'Operación inválida.' };
+    }
+
+    function selectItem(id){
+      if(state.won) return;
+      const item = state.items.find(x => x.id === id);
+      if(!item || item.used) return;
+      setMessage(''); setShareLink('');
+      if(state.selectedIds.includes(id)){
+        state.selectedIds = state.selectedIds.filter(x => x !== id);
+        render(); return;
+      }
+      if(state.selectedIds.length >= 2) return;
+      state.selectedIds.push(id);
+      render();
+    }
+
+    function applyOperation(op){
+      if(state.won) return;
+      const selected = getSelectedItems();
+      if(selected.length !== 2){
+        setMessage('Debes seleccionar exactamente dos números para llenar las dos casillas.', 'error');
+        setPlayMessage('Debes seleccionar exactamente dos números.', 'error');
+        return;
+      }
+
+      state.selectedOperation = op;
+      const [first, second] = selected;
+      const result = computeResult(first.value, second.value, op);
+
+      if(!result.ok){
+        render(); setMessage(result.error, 'error'); setPlayMessage(result.error, 'error'); return;
+      }
+
+      state.undoStack.push(snapshotState());
+      state.items = state.items.map(it => (it.id === first.id || it.id === second.id) ? { ...it, used:true } : it);
+      state.items.push(makeItem(result.value, 'derived'));
+      state.history.push(result.text);
+      state.selectedIds = [];
+      state.selectedOperation = null;
+
+      render();
+
+      if(result.value === state.meta){
+        state.won = true; render();
+        setMessage('¡Ganaste! Encontraste un camino a la meta.', 'success');
+        setPlayMessage('¡Ganaste! Encontraste un camino a la meta.', 'success');
+        return;
+      }
+      if(!availableMovesExist(state.items)){
+        setMessage('No llegaste a la meta. ¿Quieres probar otro camino para llegar a la meta?', 'error');
+        setPlayMessage('No llegaste a la meta. ¿Quieres probar otro camino para llegar a la meta?', 'error');
+        return;
+      }
+      setMessage(`Resultado obtenido: ${result.value}`, 'success');
+      setPlayMessage(`Resultado obtenido: ${result.value}`, 'success');
+    }
+
+    function beginChallenge(M, n, nums, source="manual"){
+      state = { meta:M, n, items:nums.map(v => makeItem(v, 'initial')), history:[], selectedIds:[], selectedOperation:null, won:false, initialConfig:{ meta:M, n, nums:[...nums] }, undoStack:[], source };
+      render();
+      setMessage('Desafío iniciado.', 'success');
+      setPlayMessage('Selecciona dos números y luego una operación.', 'info');
+    }
+
+    function startGame(){
+      setMessage(''); setShareLink('');
+      const n = Number(nInput.value), M = Number(metaInput.value);
+      if(!ALLOWED_N.includes(n)){ setMessage('n debe ser uno de estos valores: 2, 3, 4, 5 o 6.', 'error'); return; }
+      if(!Number.isInteger(M) || M < 1 || M > MAX_VALUE){ setMessage('La meta debe ser un entero entre 1 y 999.', 'error'); return; }
+      const parsed = parseInitialNumbers(numsInput.value);
+      if(!parsed.ok){ setMessage(parsed.error, 'error'); return; }
+      if(parsed.value.length !== n){ setMessage(`Debes ingresar exactamente ${n} número(s) inicial(es).`, 'error'); return; }
+      beginChallenge(M, n, parsed.value, "manual");
+      setTimeout(analyzeReachability, 50);
+    }
+
+    function restartChallenge(){
+      if(!state.initialConfig){ setMessage('Aún no hay un desafío para reiniciar.', 'error'); return; }
+      const cfg = state.initialConfig;
+      beginChallenge(cfg.meta, cfg.n, cfg.nums, state.source);
+    }
+
+    function hardReset(){
+      state = { meta:null, n:null, items:[], history:[], selectedIds:[], selectedOperation:null, won:false, initialConfig:null, undoStack:[], source:"manual" };
+      metaInput.value = ''; nInput.value = ''; numsInput.value = ''; setMessage(''); setShareLink(''); render();
+    }
+
+    function undoMove(){
+      if(state.selectedIds.length > 0 || state.selectedOperation){
+        state.selectedIds = []; state.selectedOperation = null; render();
+        setMessage('Se limpiaron las casillas y la operación seleccionada.', 'success');
+        setPlayMessage('Selección borrada. Puedes volver a elegir.', 'success');
+        return;
+      }
+      if(state.undoStack.length === 0){
+        setMessage('No hay jugadas para deshacer.', 'error');
+        setPlayMessage('No hay jugadas para deshacer.', 'error');
+        return;
+      }
+      const prev = state.undoStack.pop();
+      restoreState(prev);
+      state.selectedIds = [];
+      state.selectedOperation = null;
+      render();
+      setMessage('Se deshizo la última jugada.', 'success');
+      setPlayMessage('Se deshizo la última jugada. Selecciona dos números y luego una operación.', 'success');
+    }
+
+    function shareChallenge(){
+      if(!state.initialConfig){ setMessage('Primero debes iniciar un desafío.', 'error'); return; }
+      const params = new URLSearchParams({ M:String(state.initialConfig.meta), n:String(state.initialConfig.n), nums:state.initialConfig.nums.join(',') });
+      const link = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+      setShareLink(link);
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(link).then(() => setMessage('Enlace copiado al portapapeles.', 'success')).catch(() => setMessage('No se pudo copiar automáticamente, pero el enlace quedó mostrado abajo.', 'success'));
+      } else {
+        setMessage('El enlace quedó mostrado abajo.', 'success');
+      }
+    }
+
+    function populatePresets(){
+      presetSelect.innerHTML = '';
+      PRESET_CHALLENGES.forEach((challenge, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx); opt.textContent = challenge.name; presetSelect.appendChild(opt);
+      });
+    }
+
+    function loadPreset(){
+      const idx = Number(presetSelect.value);
+      const challenge = PRESET_CHALLENGES[idx];
+      if(!challenge) return;
+      nInput.value = challenge.n; metaInput.value = challenge.meta; numsInput.value = challenge.nums.join(',');
+      beginChallenge(challenge.meta, challenge.n, challenge.nums, "preset");
+      setMessage('Desafío prehecho cargado.', 'success');
+    }
+
+    function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+    function validForwardMoves(numbers){
+      const moves = [];
+      for(let i=0;i<numbers.length;i++){
+        for(let j=0;j<numbers.length;j++){
+          if(i===j) continue;
+          const a = numbers[i], b = numbers[j];
+          moves.push({a,b,op:"+",value:a+b});
+          moves.push({a,b,op:"*",value:a*b});
+          if(a-b>0) moves.push({a,b,op:"-",value:a-b});
+          if(b!==0 && a%b===0 && a/b>0) moves.push({a,b,op:"/",value:a/b});
+        }
+      }
+      return moves.filter(m => m.value > 0 && Number.isInteger(m.value) && m.value <= 9999);
+    }
+
+    function generateRandomSolvableChallenge(n){
+      for(let attempt=0;attempt<250;attempt++){
+        const initial = Array.from({length:n}, () => randomInt(1,30));
+        let current = [...initial];
+        const derived = [];
+        const steps = randomInt(1, n-1);
+        for(let s=0;s<steps;s++){
+          if(current.length < 2) break;
+          const moves = validForwardMoves(current);
+          if(moves.length === 0) break;
+          const move = moves[randomInt(0, moves.length-1)];
+          const i = current.indexOf(move.a);
+          let j = current.indexOf(move.b);
+          if(i === j) j = current.indexOf(move.b, j+1);
+          if(i < 0 || j < 0 || i === j) break;
+          current = current.filter((_, idx) => idx !== i && idx !== j);
+          current.push(move.value);
+          derived.push(move.value);
+        }
+        const candidates = derived.filter(x => x >= 1 && x <= 999);
+        if(candidates.length > 0) return { meta:candidates[randomInt(0, candidates.length-1)], nums:initial };
+      }
+      return null;
+    }
+
+    function fillRandomChallenge(){
+      const n = Number(nInput.value);
+      if(!ALLOWED_N.includes(n)){ setMessage('Para usar Random, primero debes fijar un valor de n entre 2 y 6.', 'error'); return; }
+      const challenge = generateRandomSolvableChallenge(n);
+      if(!challenge){ setMessage('No se pudo generar un desafío random en este intento.', 'error'); return; }
+      metaInput.value = challenge.meta; numsInput.value = challenge.nums.join(',');
+      beginChallenge(challenge.meta, n, challenge.nums, "random");
+      setMessage('Se generó un desafío random alcanzable.', 'success');
+    }
+
+    function canonicalKey(arr){ return [...arr].sort((a,b)=>a-b).join(','); }
+
+    function analyzeReachability(){
+      if(!state.initialConfig){ setMessage('Primero debes iniciar un desafío.', 'error'); return; }
+      const nums = [...state.initialConfig.nums];
+      const target = state.initialConfig.meta;
+      setMessage('Analizando alcanzabilidad... Este análisis exacto puede ser pesado en algunos casos.', 'info');
+      const memo = new Map(); let explored = 0; const LIMIT = 120000;
+
+      function canReach(arr){
+        explored += 1;
+        if(explored > LIMIT) return null;
+        if(arr.includes(target)) return true;
+        if(arr.length < 2) return false;
+        const key = canonicalKey(arr);
+        if(memo.has(key)) return memo.get(key);
+        let sawNull = false;
+        for(let i=0;i<arr.length;i++){
+          for(let j=i+1;j<arr.length;j++){
+            const a = arr[i], b = arr[j];
+            const rest = arr.filter((_, idx) => idx !== i && idx !== j);
+            const candidates = [a+b, a*b];
+            if(a-b>0) candidates.push(a-b);
+            if(b-a>0) candidates.push(b-a);
+            if(b!==0 && a%b===0) candidates.push(a/b);
+            if(a!==0 && b%a===0) candidates.push(b/a);
+            const unique = [...new Set(candidates)].filter(x => Number.isInteger(x) && x > 0);
+            for(const c of unique){
+              const ans = canReach([...rest, c]);
+              if(ans === true){ memo.set(key, true); return true; }
+              if(ans === null) sawNull = true;
+            }
+          }
+        }
+        const result = sawNull ? null : false;
+        memo.set(key, result); return result;
+      }
+
+      const answer = canReach(nums);
+      if(answer === true){
+        setMessage('La meta sí es alcanzable desde estos datos iniciales.', 'success');
+      } else if(answer === false){
+        setMessage('Con estos datos iniciales, la meta es inalcanzable.', 'error');
+        setPlayMessage('Con estos datos iniciales, la meta es inalcanzable.', 'error');
+      } else {
+        setMessage('No se pudo decidir la alcanzabilidad rápidamente. Este es el punto más costoso de programar de forma exacta.', 'info');
+      }
+    }
+
+    function loadFromURL(){
+      const params = new URLSearchParams(window.location.search);
+      const M = params.get('M'), n = params.get('n'), nums = params.get('nums');
+      if(n) nInput.value = n;
+      if(M) metaInput.value = M;
+      if(nums) numsInput.value = nums;
+      if(n && M && nums){
+        const parsedN = Number(n), parsedM = Number(M), parsedNums = nums.split(',').map(x => Number(x));
+        if(ALLOWED_N.includes(parsedN) && Number.isInteger(parsedM) && parsedNums.length === parsedN && parsedNums.every(x => Number.isInteger(x) && x > 0)){
+          beginChallenge(parsedM, parsedN, parsedNums, "url");
+          setMessage('Desafío cargado desde el enlace.', 'success');
+        }
+      }
+    }
+
+    function render(){
+      const started = state.meta !== null;
+      gameArea.style.display = started ? 'grid' : 'none';
+      metaHero.textContent = `Meta: ${state.meta ?? '-'}`;
+      nBadge.textContent = `n = ${state.n ?? '-'}`;
+
+      const selected = getSelectedItems();
+      slot1.textContent = selected[0] ? selected[0].value : '—';
+      slot2.textContent = selected[1] ? selected[1].value : '—';
+      slot1.className = 'slot' + (selected[0] ? ' filled' : '');
+      slot2.className = 'slot' + (selected[1] ? ' filled' : '');
+      operationView.textContent = state.selectedOperation ? (state.selectedOperation === '*' ? '×' : state.selectedOperation === '/' ? '÷' : state.selectedOperation) : '?';
+
+      if(!started) setPlayMessage('Selecciona dos números y luego una operación.', 'info');
+      else if(!state.won && selected.length === 0 && state.history.length === 0) setPlayMessage('Selecciona dos números y luego una operación.', 'info');
+      else if(!state.won && selected.length === 1) setPlayMessage('Ahora selecciona el segundo número.', 'info');
+      else if(!state.won && selected.length === 2 && !state.selectedOperation) setPlayMessage('Ahora elige una operación.', 'info');
+
+      chipsArea.innerHTML = '';
+      state.items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'chip ' + (item.used ? 'used' : item.origin) + (state.selectedIds.includes(item.id) ? ' selected' : '');
+        div.textContent = item.value; div.onclick = () => selectItem(item.id); chipsArea.appendChild(div);
+      });
+
+      historyArea.innerHTML = '';
+      if(state.history.length === 0){
+        historyArea.innerHTML = '<div class="small">Aún no hay jugadas.</div>';
+      } else {
+        state.history.forEach((text, idx) => {
+          const box = document.createElement('div');
+          box.className = 'history-item';
+          box.innerHTML = `<div class="small">Jugada ${idx+1}</div><div style="font-size:20px; font-weight:700;">${text}</div>`;
+          historyArea.appendChild(box);
+        });
+      }
+    }
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('randomBtn').addEventListener('click', fillRandomChallenge);
+    document.getElementById('analyzeBtn').addEventListener('click', analyzeReachability);
+    document.getElementById('hardResetBtn').addEventListener('click', hardReset);
+    document.getElementById('shareBtn').addEventListener('click', shareChallenge);
+    document.getElementById('loadPresetBtn').addEventListener('click', loadPreset);
+    document.getElementById('undoBtnGame').addEventListener('click', undoMove);
+    document.getElementById('restartBtnGame').addEventListener('click', restartChallenge);
+    document.querySelectorAll('.opBtn').forEach(btn => btn.addEventListener('click', () => applyOperation(btn.dataset.op)));
+
+    populatePresets();
+    loadFromURL();
+    render();
+  </script>
+</body>
+</html>
